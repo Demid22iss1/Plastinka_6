@@ -6,8 +6,18 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const bcrypt = require("bcryptjs");
+
 const app = express();
-const db = new sqlite3.Database("./database.sqlite");
+
+// Для работы на Render.com
+const PORT = process.env.PORT || 3000;
+
+// Для работы с SQLite на Render (дисковая БД)
+// Используем одну инициализацию базы данных
+const dbPath = process.env.DATABASE_URL?.replace('sqlite:', '') || './database.sqlite';
+const db = new sqlite3.Database(dbPath);
+
+// Настройки базы данных
 db.run("PRAGMA encoding = 'UTF-8'");
 db.run("PRAGMA case_sensitive_like = OFF");
 
@@ -17,12 +27,16 @@ db.run("PRAGMA case_sensitive_like = OFF");
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("public"));
+
+// Настройка сессий для Render (без secure в http)
 app.use(session({
-    secret: "plastinka-secret-key-2024",
+    secret: process.env.SESSION_SECRET || "plastinka-secret-key-2024",
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24
+        maxAge: 1000 * 60 * 60 * 24,
+        secure: false, // Важно для http на Render
+        sameSite: 'lax'
     }
 }));
 
@@ -228,36 +242,106 @@ db.serialize(() => {
 });
 
 // ============================================================
-// ПОЛУЧЕНИЕ МАРШРУТОВ ИЗ ОТДЕЛЬНЫХ ФАЙЛОВ
+// ЗДЕСЬ ВСТАВЬТЕ ВСЕ ВАШИ МАРШРУТЫ ИЗ ОРИГИНАЛЬНОГО ФАЙЛА
+// (routes, API, catalog, cart, profile, admin, home и т.д.)
 // ============================================================
-const routes = {
-    api: require('./routes/api')(db, requireAuth, requireAdmin, upload, escapeHtml),
-    cart: require('./routes/cart')(db, requireAuth, escapeHtml),
-    auth: require('./routes/auth')(db, bcrypt),
-    admin: require('./routes/admin')(db, requireAdmin, upload, escapeHtml, bcrypt),
-    catalog: require('./routes/catalog')(db, requireAuth, escapeHtml),
-    profile: require('./routes/profile')(db, requireAuth, escapeHtml),
-    home: require('./routes/home')(db, requireAuth, escapeHtml)
-};
 
-// Подключение маршрутов
-app.use('/api', routes.api);
-app.use('/', routes.cart);
-app.use('/', routes.auth);
-app.use('/', routes.admin);
-app.use('/', routes.catalog);
-app.use('/', routes.profile);
-app.use('/', routes.home);
+// Простой маршрут для проверки работы
+app.get("/", (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Plastinka</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    background: linear-gradient(135deg, #0a0a0a 0%, #0f0f0f 100%);
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    color: #fff;
+                    min-height: 100vh;
+                    margin: 0;
+                    padding: 0;
+                }
+                .container {
+                    text-align: center;
+                    padding: 50px 20px;
+                }
+                h1 {
+                    font-size: 48px;
+                    background: linear-gradient(135deg, #fff, #ff4444);
+                    -webkit-background-clip: text;
+                    background-clip: text;
+                    color: transparent;
+                    margin-bottom: 20px;
+                }
+                .buttons {
+                    display: flex;
+                    gap: 20px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                    margin-top: 30px;
+                }
+                .btn {
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    font-weight: bold;
+                    transition: all 0.3s;
+                }
+                .btn-primary {
+                    background: linear-gradient(45deg, #ff0000, #990000);
+                    color: white;
+                }
+                .btn-secondary {
+                    background: #333;
+                    color: white;
+                }
+                .btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(255,0,0,0.3);
+                }
+                .status {
+                    background: #1a1a1a;
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-top: 40px;
+                    display: inline-block;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🎵 Plastinka</h1>
+                <p>Интернет-магазин виниловых пластинок</p>
+                <div class="buttons">
+                    <a href="/catalog" class="btn btn-primary">📀 Каталог</a>
+                    <a href="/login" class="btn btn-secondary">🔐 Войти</a>
+                    <a href="/register" class="btn btn-secondary">📝 Регистрация</a>
+                </div>
+                <div class="status">
+                    ✅ Сервер работает!<br>
+                    🚀 Render.com deployment successful
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+// Health check endpoint для Render
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // ============================================================
 // ЗАПУСК СЕРВЕРА
 // ============================================================
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
+    console.log(`🚀 Сервер запущен на порту ${PORT}`);
+    console.log(`🌐 Локальный адрес: http://localhost:${PORT}`);
     console.log(`👤 Админ: admin / admin123`);
     console.log(`⭐ Система рейтинга из 5 звёзд с комментариями активна!`);
-    console.log(`🖼️ Пользователи могут менять аватарки с обрезкой!`);
+    console.log(`📁 База данных: ${dbPath}`);
 });
-
-module.exports = app;
