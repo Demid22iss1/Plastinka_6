@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Database
+database.sqlite
+*.db
+*.sqlite
+
+# Environment
+.env
+.env.local
+
+# Uploads
+public/uploads/*
+public/audio/*
+public/photo/*
+public/avatars/*
+!public/uploads/.gitkeep
+!public/audio/.gitkeep
+!public/photo/.gitkeep
+!public/avatars/.gitkeep
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temp files
+tmp/
+temp/
